@@ -1,0 +1,122 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+from pandas import DataFrame
+import urllib.request
+import re
+#getting ip address through ipinfo service
+res= requests.get('https://ipinfo.io/')
+data=res.json()
+city=data['city']
+state=data['region']
+print("You are in:",city,",",state)
+choice=input("What are you looking for today? (type jobs or knowledge)")
+#code extraction
+def Remove(duplicate): 
+    final_list = [] 
+    for num in duplicate: 
+        if num not in final_list: 
+            final_list.append(num) 
+    return final_list 
+def article_search(string):
+    try: 
+        from googlesearch import search 
+    except ImportError:  
+        print("No module named 'google' found") 
+    #key word search on google using site: function
+    query = "site: " + string +" " + state
+    for j in search(query, tld="co.in", num=4, stop=4, pause=2.0): 
+            # qury- search, tld- top level domain, num-number of results, start-first result, stop-last result
+            #pause- pause between requests in order not to look like DDos
+            resource=requests.get(j)
+            website=bs4.BeautifulSoup(resource.text,'lxml')
+            txt=website.select('title')
+            if txt[0].getText()=='403 Forbidden':
+                print("You do not have permissions for the website!")
+            else:
+                print( txt[0].getText())
+                summary=website.select('h2')
+                print( summary[0].getText())
+            print(j)
+def job_search(job,city,state):
+        url='https://www.careerbuilder.com/jobs-'+job+'-in-'+city+'?keywords='+job+'&location='+city
+        source=urllib.request.urlopen(url)
+        soup=BeautifulSoup(source,'lxml')
+        data_job=[]
+        data_employement=[]
+        data_description=[]
+        data_location=[]
+        for h2 in soup.find_all('h2'):
+             for a in h2.find_all('a'):
+                values=[a.text for a in h2.find_all('a')]
+                data_job.append(values)
+        for h4 in soup.find_all('h4',{'class':'job-text employment-info'}):
+            values1=[h4.text]
+            values1=[s.replace("\n", '') for s in values1]
+            data_employement.append(values1)
+        for div in soup.find_all('div',{'class':'job-description show-for-medium-up'}):
+            values2=[div.text]
+            values2=[s.replace("\n", '') for s in values2]
+            data_description.append(values2)
+        for h4 in soup.find_all('h4',{'class':'job-text'}):
+            values3=[h4.text]
+            values3=[s.replace("\n", '') for s in values3]
+            values3=[s.replace("Full Time", 'Not Specified') for s in values3]
+            values3=[s.replace('0', '') for s in values3]
+            values3=[s.replace('Pay: ', '') for s in values3]
+            values3=[s.replace('2', '') for s in values3]
+            values3=[s.replace('5', '') for s in values3]
+            values3=[s.replace('|', '') for s in values3]
+            values3=[s.replace('−', '') for s in values3]
+            values3=[s.replace('3', '') for s in values3]
+            values3=[s.replace(',', '') for s in values3]
+            values3=[s.replace('year', '') for s in values3]
+            values3=[s.replace('/', '') for s in values3]
+            data_location.append(values3)
+        data_job=Remove(data_job[:10])
+        data_employement=data_employement[:6]
+        data_description=data_description[:6]
+        data_location=data_location[:6]
+        job_search_dict={'Job':data_job,
+                            'Company':data_employement,
+                            'Description':data_description,
+                            'Location':data_location}
+        #emergency dictionary: dont ask- dont tell
+        #I know its pretty useless, but let it be
+        #thanks
+        #-Roman
+        job_search_df_2=pd.DataFrame({'Type':data_employement})
+        job_search_df_3=pd.DataFrame({'Description':data_description})
+        job_search_df_4=pd.DataFrame({'Location/Company':data_location})
+        job_search_df_1=pd.DataFrame({'Job':data_job})
+        job_search_df = pd.concat([job_search_df_1, job_search_df_2,job_search_df_3,job_search_df_4], axis=1)
+        print(url)
+        display(job_search_df.sample(5))
+if choice=='knowledge':
+    tags=[]
+    while True:
+        input_tags=input("Please enter the tags you are interested in (ex. 'robotics,big data,jobs')")
+        if input_tags=='quit':
+            print(tags)
+            break  
+        else:
+            tags.insert(0,input_tags)
+    string = ' '.join(tags)
+    article_search(string)
+if choice=='jobs':
+    location_choice=input("Do you want a job near you or elsewhere?(print here or else)")
+    if location_choice=='else':
+        city=input("please print a city(ex. Syracuse or New+York)")
+        state=input("please print a state(ex. NY)")
+    elif location_choice=='here':
+        print("Looking for jobs in ",city,state)
+    else:
+        print("Choice input was incorrect")
+    job=0
+    job=input("Please enter the job you are interested in or type quit(ex. carpenter or data+scientist): ")
+    print(job)
+    job_search(job,city,state)
+
+    
+
+    
